@@ -1,0 +1,23 @@
+# Run Magma captain (and optionally exp2json/plot) on macOS without host deps.
+# Usage:
+#   docker compose run runner ./scripts/run_captain.sh
+#   docker compose run runner ./scripts/run_benchmark.sh   # captain + exp2json
+#   docker compose run runner python3 scripts/plot_benchmark.py workdir bugs.json
+
+services:
+  runner:
+    build: .
+    image: magma_ezr_runner
+    user: "${RUNNER_UID:-1000}:${RUNNER_GID:-1000}"
+    volumes:
+      - .:/workspace
+      - /var/run/docker.sock:/var/run/docker.sock
+    working_dir: /workspace
+    environment:
+      - WORKDIR=/workspace/workdir
+    # Optional: limit resources for fuzzing
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '4'
+    #       memory: 8G

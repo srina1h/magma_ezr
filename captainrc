@@ -1,0 +1,35 @@
+# Captain config for magma_ezr libpng benchmark.
+# For macOS runner: set WORKDIR=/workspace/workdir before running run.sh.
+
+###
+## Configuration parameters
+###
+
+# WORKDIR: path to directory where shared volumes will be created
+# When running inside Docker runner, set WORKDIR=/workspace/workdir
+WORKDIR=${WORKDIR:-./workdir}
+
+# REPEAT: number of campaigns to run per program (per fuzzer)
+REPEAT=1
+
+# [WORKERS]: number of worker threads (default: CPU cores)
+WORKERS=1
+
+# [TIMEOUT]: time to run each campaign (s, m, h, d). Use 10m for smoke test.
+TIMEOUT=24h
+
+# [POLL]: time (in seconds) between polls (default: 5)
+POLL=5
+
+# CACHE_ON_DISK: required when running captain inside Docker (no tmpfs)
+CACHE_ON_DISK=1
+
+# [ISAN]: if set, build with ISAN/fatal canaries (default: unset)
+# ISAN=1
+
+###
+## Campaigns to run
+###
+
+FUZZERS=(afl)
+afl_TARGETS=(libpng)
