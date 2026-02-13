@@ -59,6 +59,23 @@ if ! "$SCRIPT_DIR/run_captain.sh" "$CAPTAINRC"; then
         tail -50 "$BUILD_LOG" >&2
     fi
     
+    # Check for run/fuzzing logs
+    echo "" >&2
+    echo "Checking for fuzzing/run logs..." >&2
+    find "$WORKDIR/log" -type f 2>/dev/null | while read logfile; do
+        echo "=== $logfile ===" >&2
+        tail -30 "$logfile" >&2
+        echo "" >&2
+    done
+    
+    # Check for container logs in workdir
+    echo "Checking for container output..." >&2
+    find "$WORKDIR" -name "*.log" -o -name "*output*" -o -name "*error*" 2>/dev/null | head -5 | while read logfile; do
+        echo "=== $logfile ===" >&2
+        tail -30 "$logfile" >&2
+        echo "" >&2
+    done
+    
     exit $CAPTAIN_EXIT
 fi
 

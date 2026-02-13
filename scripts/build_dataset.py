@@ -150,11 +150,19 @@ def check_combo_complete(label):
     try:
         with open(metrics_file) as f:
             metrics = json.load(f)
-        # If execs_done is 0, likely build failed
-        if metrics.get("execs_done", 0) == 0:
+        # If execs_done is 0, fuzzing didn't happen
+        execs_done = metrics.get("execs_done", 0)
+        if execs_done == 0:
+            log(f"  combo {label}: execs_done=0, fuzzing didn't run")
+            return False
+        # Also check if paths_total > 0 as another indicator
+        paths_total = metrics.get("paths_total", 0)
+        if paths_total == 0 and execs_done < 100:
+            log(f"  combo {label}: paths_total=0 and execs_done={execs_done}, likely incomplete")
             return False
         return True
-    except:
+    except Exception as e:
+        log(f"  Error checking combo {label}: {e}")
         return False
 
 def main():
@@ -235,7 +243,10 @@ def main():
         # Run campaign
         success = run_campaign(label, combo_params, timeout_seconds, args.captainrc)
         
-        if success and check_combo_complete(label):
+        # Check if combo completed successfully
+        is_complete = check_combo_complete(label)
+        
+        if success and is_complete:
             completed_set.add(label)
             state["completed"] = list(completed_set)
             state["in_progress"] = None
@@ -243,11 +254,12 @@ def main():
             log(f"✓ Completed: {label} ({len(completed_set)}/{len(combinations)})")
         else:
             if success:
-                log(f"✗ Incomplete: {label} (build may have failed - check build logs)")
+                log(f"✗ Incomplete: {label} (fuzzing didn't run or produced no results)")
+                log(f"  Check workdir/log/ for container/fuzzing logs")
             else:
                 log(f"✗ Failed: {label} (check logs for details)")
-            # Keep in_progress set so we can retry on resume
-            # But clear it so we don't get stuck retrying the same failing combo
+            # Clear in_progress so we don't get stuck retrying the same failing combo
+            # User can manually investigate and fix the issue
             state["in_progress"] = None
             save_state(state)
         
