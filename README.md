@@ -5,8 +5,11 @@ Local Linux-based fuzzing benchmark for libpng with AFL parameter tuning. Runs 3
 ## Prerequisites
 
 - **Linux system** (Ubuntu/Debian/Fedora/Arch recommended)
+- **Docker** - Required for building magma targets (the setup script will install it)
 - System packages: `util-linux`, `inotify-tools`, `git`, `python3`, `python3-pip`, `build-essential`
 - Python packages: `pandas >= 1.1.0`, `matplotlib` (optional, for plotting)
+
+**Note:** Docker is only needed for the build step. Fuzzing runs locally without Docker containers.
 
 ## Quick Setup
 
