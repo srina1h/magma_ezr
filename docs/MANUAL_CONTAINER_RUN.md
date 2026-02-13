@@ -74,6 +74,7 @@ docker run --rm -it \
 | `sleep: missing operand` | Apply patches and use `TIMEOUT=1200`. Rebuild image. |
 | `cp: -r not specified` | Apply patches (adds `cp -r` for corpus). Rebuild image. |
 | `rm: cannot remove ... runonce.tmp` | Apply patches (`rm -f`). Rebuild image. |
+| `No usable test cases in '.../corpus/'` | Apply patches (seeds fallback when no `$1`). Rebuild image. Ensure corpus exists at `magma/targets/<target>/corpus/<program>/`. |
 | `Pipe at the beginning of 'core_pattern'` | Run `sudo ./scripts/fix_core_pattern.sh` |
 
 ## Normal use (recommended)
