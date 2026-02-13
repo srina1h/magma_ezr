@@ -27,7 +27,30 @@ mkdir -p "$WORKDIR"
 echo "[knob_campaign] Label=$RUN_LABEL Config=$CAPTAINRC"
 echo "[knob_campaign] AFL knobs:"
 env | grep '^AFL_' | sort || true
-"$SCRIPT_DIR/run_captain.sh" "$CAPTAINRC"
+
+# Check if magma exists
+if [ ! -d "$MAGMA" ]; then
+    echo "ERROR: Magma directory not found: $MAGMA"
+    echo "Please run: ./scripts/setup_local.sh"
+    exit 1
+fi
+
+if [ ! -f "$MAGMA/tools/captain/run.sh" ]; then
+    echo "ERROR: Captain script not found: $MAGMA/tools/captain/run.sh"
+    echo "Magma may not be properly initialized"
+    exit 1
+fi
+
+if [ ! -f "$CAPTAINRC" ]; then
+    echo "ERROR: Captain config not found: $CAPTAINRC"
+    exit 1
+fi
+
+echo "[knob_campaign] Running captain..."
+"$SCRIPT_DIR/run_captain.sh" "$CAPTAINRC" || {
+    echo "ERROR: Captain failed with exit code $?"
+    exit 1
+}
 
 # Extract metrics from fuzzer_stats and monitor CSVs
 RUN_OUTPUT="$OUTPUT_DIR/$RUN_LABEL"

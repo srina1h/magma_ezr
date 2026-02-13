@@ -123,6 +123,14 @@ def run_campaign(label, params, timeout_seconds, captainrc):
             log(f"STDERR: {result.stderr[-500:]}")
             return False
         
+        # Check if campaign actually ran (should take more than a few seconds)
+        if elapsed < 5:
+            log(f"WARNING: Campaign {label} completed too quickly ({elapsed:.1f}s)")
+            log(f"This likely indicates captain failed or didn't run properly")
+            log(f"STDOUT: {result.stdout[-1000:]}")
+            log(f"STDERR: {result.stderr[-1000:]}")
+            return False
+        
         log(f"Campaign {label} completed in {elapsed:.1f}s")
         return True
         
