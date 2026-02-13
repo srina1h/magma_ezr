@@ -1,48 +1,29 @@
-# Manual Container Run (for debugging)
+# Manual Container Run (Debugging Only)
 
-When captain runs containers it sets up volumes and converts TIMEOUT. If you run the container manually, use the following.
+**Normal use:** Run via captain (`./scripts/run_knob_campaign.sh combo_0`). This doc is for debugging when captain fails.
 
-## 1. Apply magma patches (required)
+## Prerequisites
 
-Magma has a few bugs that cause cp/rm/sleep errors. Apply our patches first:
+1. **Apply patches and rebuild image:**
+   ```bash
+   ./scripts/apply_magma_patches.sh
+   cd magma
+   docker build -t magma/afl/libpng \
+     --build-arg fuzzer_name=afl \
+     --build-arg target_name=libpng \
+     --build-arg USER_ID=$(id -u) \
+     --build-arg GROUP_ID=$(id -g) \
+     --build-arg canaries=1 \
+     -f docker/Dockerfile .
+   cd ..
+   ```
 
-```bash
-./scripts/apply_magma_patches.sh
-```
+2. **Fix core_pattern on host:**
+   ```bash
+   sudo ./scripts/fix_core_pattern.sh
+   ```
 
-Then **rebuild the Docker image** so the container includes the patched scripts:
-
-```bash
-cd magma
-docker build -t magma/afl/libpng \
-  --build-arg fuzzer_name=afl \
-  --build-arg target_name=libpng \
-  --build-arg USER_ID=$(id -u) \
-  --build-arg GROUP_ID=$(id -g) \
-  --build-arg canaries=1 \
-  -f docker/Dockerfile .
-cd ..
-```
-
-## 2. Fix core_pattern (required on most Linux systems)
-
-AFL aborts with "Pipe at the beginning of 'core_pattern'" unless core dumps are written to a file. Run once (with sudo):
-
-```bash
-sudo ./scripts/fix_core_pattern.sh
-```
-
-Or manually:
-
-```bash
-echo core | sudo tee /proc/sys/kernel/core_pattern
-```
-
-## 3. TIMEOUT format
-
-Use **seconds** in the container. In `captainrc.dataset` we use `TIMEOUT=1200` (20 minutes). Do not use `20m` when running manually.
-
-## 4. Manual run with correct mounts and env
+## Manual Run
 
 ```bash
 mkdir -p workdir/cache
@@ -65,22 +46,8 @@ docker run --rm -it \
   /magma/run.sh
 ```
 
-`AFL_I_DONT_CARE_ABOUT_MISSING_CRASHES=1` reduces sensitivity to core_pattern in some setups, but fixing core_pattern (step 2) is still recommended.
+## Common Errors
 
-## Errors you may see
-
-| Error | Fix |
-|-------|-----|
-| `sleep: missing operand` | Apply patches and use `TIMEOUT=1200`. Rebuild image. |
-| `cp: -r not specified` | Apply patches (adds `cp -r` for corpus). Rebuild image. |
-| `rm: cannot remove ... runonce.tmp` | Apply patches (`rm -f`). Rebuild image. |
-| `No usable test cases in '.../corpus/'` | Apply patches (seeds fallback when no `$1`). Rebuild image. Ensure corpus exists at `magma/targets/<target>/corpus/<program>/`. |
-| `Pipe at the beginning of 'core_pattern'` | Run `sudo ./scripts/fix_core_pattern.sh` |
-
-## Normal use (recommended)
-
-Run captain instead of the container by hand; it sets up mounts and passes env:
-
-```bash
-./scripts/run_knob_campaign.sh combo_0
-```
+- `Pipe at the beginning of 'core_pattern'` → Fix on host: `sudo ./scripts/fix_core_pattern.sh`
+- `No usable test cases` → Patches should fix this; ensure image is rebuilt
+- `rm: cannot remove ... runonce.tmp: Is a directory` → Clear cache: `rm -rf workdir/cache/runonce.tmp`

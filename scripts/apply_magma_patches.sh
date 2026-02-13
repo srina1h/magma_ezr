@@ -1,9 +1,8 @@
 #!/bin/bash
-# Apply patches to magma to fix:
-#   1. runonce.sh: rm runonce.tmp -> rm -f (avoid error when file missing)
-#   2. magma/run.sh: timeout $TIMEOUT -> timeout ${TIMEOUT:-1200} (avoid empty TIMEOUT)
-#   3. Any run.sh: sleep $POLL -> sleep ${POLL:-5}
+# Apply patches to magma for better compatibility.
+# Fixes: timeout/sleep defaults, cp/rm edge cases, seeds fallback for manual runs.
 # Run from repo root. Requires magma directory.
+# Note: Patches are optional when using captain (normal path).
 
 set -e
 
@@ -20,12 +19,14 @@ fi
 
 echo "Applying patches to magma..."
 
-# 1. runonce.sh: rm -> rm -f for runonce.tmp, and cp -> cp -r so directory corpus works
+# 1. runonce.sh: rm -> rm -rf for runonce.tmp (file or dir), and cp -> cp -r so directory corpus works
 if [ -f "$MAGMA/magma/runonce.sh" ]; then
     if grep -q 'rm "\$SHARED/runonce.tmp"' "$MAGMA/magma/runonce.sh" 2>/dev/null; then
-        sed -i.bak 's/rm "\$SHARED\/runonce\.tmp"/rm -f "\$SHARED\/runonce.tmp"/g' "$MAGMA/magma/runonce.sh"
+        sed -i.bak 's/rm "\$SHARED\/runonce\.tmp"/rm -rf "\$SHARED\/runonce.tmp"/g' "$MAGMA/magma/runonce.sh"
+        # Also fix already-patched rm -f so we get rm -rf
+        sed -i.bak 's/rm -f "\$SHARED\/runonce\.tmp"/rm -rf "\$SHARED\/runonce.tmp"/g' "$MAGMA/magma/runonce.sh"
         rm -f "$MAGMA/magma/runonce.sh.bak"
-        echo "  patched magma/magma/runonce.sh (rm -f)"
+        echo "  patched magma/magma/runonce.sh (rm -rf for runonce.tmp)"
     fi
     if grep -q 'cp --force "\$1"' "$MAGMA/magma/runonce.sh" 2>/dev/null; then
         sed -i.bak 's/cp --force "\$1"/cp -r --force "\$1"/g' "$MAGMA/magma/runonce.sh"
@@ -60,6 +61,16 @@ if [ -f "$MAGMA/magma/run.sh" ]; then
         echo "  patched magma/magma/run.sh (seeds from corpus when no \$1)"
     fi
 fi
+
+# 3d. Fuzzer run scripts: use corpus/PROGRAM as AFL input dir (seeds live in corpus/PROGRAM/, not corpus/)
+for f in "$MAGMA/fuzzers/afl/run.sh" "$MAGMA/fuzzers/aflplusplus/run.sh" "$MAGMA/fuzzers/aflfast/run.sh" "$MAGMA/fuzzers/libfuzzer/run.sh"; do
+    if [ -f "$f" ] && grep -q '\$TARGET/corpus[^/]' "$f" 2>/dev/null; then
+        sed -i.bak 's|\$TARGET/corpus"|\$TARGET/corpus/\$PROGRAM"|g' "$f"
+        sed -i.bak 's|"\$TARGET/corpus"|"\$TARGET/corpus/\$PROGRAM"|g' "$f"
+        rm -f "$f.bak" 2>/dev/null
+        echo "  patched $f (AFL -i corpus/PROGRAM)"
+    fi
+done
 
 # 4. Any .sh under magma: on lines containing "corpus", change "cp " to "cp -r " (avoid double -r)
 find "$MAGMA" -name "*.sh" -type f 2>/dev/null | while read -r f; do

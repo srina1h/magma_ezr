@@ -178,12 +178,12 @@ else
     echo "✓ magma directory found"
 fi
 
-# Verify magma structure and apply patches
+# Verify magma structure
 if [ -d "$REPO_ROOT/magma" ]; then
     if [ -f "$REPO_ROOT/magma/tools/captain/run.sh" ]; then
         echo "✓ magma structure looks correct"
-        echo "Applying magma patches (fix cp/rm/sleep)..."
-        "$SCRIPT_DIR/apply_magma_patches.sh" 2>/dev/null || echo "  (patch script completed or skipped)"
+        echo "Applying magma patches (fixes timeout/sleep defaults)..."
+        "$SCRIPT_DIR/apply_magma_patches.sh" 2>/dev/null || echo "  (patches applied or skipped)"
     else
         echo "Warning: magma structure may be incomplete"
         echo "  Expected: $REPO_ROOT/magma/tools/captain/run.sh"
@@ -218,10 +218,9 @@ echo "Fix core_pattern (required for AFL, run once with sudo):"
 echo "  sudo ./scripts/fix_core_pattern.sh"
 echo ""
 echo "Next steps:"
-echo "  1. Apply magma patches (if not done): ./scripts/apply_magma_patches.sh"
-echo "  2. Rebuild Docker image so container has patched scripts (see docs/MANUAL_CONTAINER_RUN.md)"
-echo "  3. Test build: ./scripts/check_build.sh"
-echo "  4. Run dataset builder: python3 scripts/build_dataset.py --budget 20m"
-echo "  5. Resume if needed: python3 scripts/build_dataset.py --resume"
-echo "  6. Aggregate results: python3 scripts/aggregate_results.py"
+echo "  1. Fix core_pattern: sudo ./scripts/fix_core_pattern.sh"
+echo "  2. Test build: ./scripts/check_build.sh"
+echo "  3. Run dataset: python3 scripts/build_dataset.py --budget 20m"
+echo "  4. Resume if needed: python3 scripts/build_dataset.py --resume"
+echo "  5. Aggregate results: python3 scripts/aggregate_results.py"
 echo ""
