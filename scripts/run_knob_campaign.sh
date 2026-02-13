@@ -11,8 +11,8 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$REPO_ROOT"
 
 RUN_LABEL="${1:?Usage: run_knob_campaign.sh <run_label> [captainrc] [output_dir]}"
-CAPTAINRC="${2:-$REPO_ROOT/captainrc.5m}"
-OUTPUT_DIR="${3:-$REPO_ROOT/ezr_results}"
+CAPTAINRC="${2:-$REPO_ROOT/captainrc.dataset}"
+OUTPUT_DIR="${3:-$REPO_ROOT/dataset_results}"
 
 export MAGMA="$REPO_ROOT/magma"
 export WORKDIR="${WORKDIR:-$REPO_ROOT/workdir}"

@@ -1,0 +1,7 @@
+{
+  "AFL_FAST_CAL": [0, 1],
+  "AFL_NO_ARITH": [0, 1],
+  "AFL_NO_HAVOC": [0, 1],
+  "AFL_DISABLE_TRIM": [0, 1],
+  "AFL_SHUFFLE_QUEUE": [0, 1]
+}

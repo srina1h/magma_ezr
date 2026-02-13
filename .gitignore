@@ -5,6 +5,13 @@ benchmark_*.png
 benchmark_summary.csv
 benchmark_summary.json
 
+# Dataset building
+dataset_results/
+dataset_state.json
+dataset_results.csv
+dataset_build.log
+ezr_results/
+
 # Python
 __pycache__/
 *.py[cod]

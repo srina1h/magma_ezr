@@ -1,6 +1,5 @@
 #!/bin/bash
 # Run captain only (build + fuzz). Use from repo root.
-# When running in Docker runner: WORKDIR is set to /workspace/workdir.
 set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"

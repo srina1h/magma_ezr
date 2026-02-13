@@ -1,87 +1,131 @@
 # magma_ezr
 
-Magma-based fuzzing benchmark for libpng with captain-driven AFL campaigns, result summarization (exp2json), and benchmark graphs (time to first bug, bugs over time).
+Local Linux-based fuzzing benchmark for libpng with AFL parameter tuning. Runs 32 combinations of 5 AFL parameters to build a dataset of coverage and bug metrics.
 
 ## Prerequisites
 
-- **Docker** (Docker Desktop on macOS, or `docker.io` on Linux).
-- **Linux (native):** `util-linux`, `inotify-tools`, `git` (captain’s `run.sh` uses these).
-- **macOS:** No extra host packages; use the **Docker runner** so captain runs inside a Linux container (see below).
-- **Python (for exp2json and plotting):** `pandas >= 1.1.0`, `matplotlib` (or use the runner image which includes them).
+- **Linux system** (Ubuntu/Debian/Fedora/Arch recommended)
+- System packages: `util-linux`, `inotify-tools`, `git`, `python3`, `python3-pip`, `build-essential`
+- Python packages: `pandas >= 1.1.0`, `matplotlib` (optional, for plotting)
 
-## Layout
-
-- **magma/** — Magma v1.2.1 clone (captain, benchd, targets).
-- **captainrc** — Captain config: AFL, libpng, `WORKDIR`, `CACHE_ON_DISK=1` for Docker.
-- **scripts/run_captain.sh** — Runs captain only (build + fuzz).
-- **scripts/run_benchmark.sh** — Runs captain then exp2json → `bugs.json`.
-- **scripts/plot_benchmark.py** — Reads `bugs.json`, writes benchmark graphs and summary CSV/JSON.
-- **workdir/** — Created by captain (build logs, campaign data); gitignored.
-- **bugs.json** — Output of exp2json; gitignored.
-
-## Quick start (Linux)
+## Quick Setup
 
 ```bash
-# From repo root
-./scripts/run_benchmark.sh
-# Then plot (optional)
-python3 scripts/plot_benchmark.py bugs.json -o .
+# Clone the repository
+git clone <repo-url>
+cd magma_ezr
+
+# Run setup script (installs dependencies)
+./scripts/setup_local.sh
+
+# If magma submodule is needed:
+git submodule update --init --recursive
+# OR manually clone:
+# git clone https://github.com/HexHive/magma.git magma
 ```
 
-For a short smoke test, edit `captainrc` and set `TIMEOUT=10m`, then run again.
+## AFL Parameters
 
-## Platform note (Apple Silicon)
+The system tunes 5 binary AFL parameters (2^5 = 32 combinations):
 
-Magma’s AFL+libpng Docker image targets **x86_64 Linux**. On **Apple Silicon (M1/M2)** the image is built with `--platform linux/amd64` and run via emulation on Apple Silicon. First build/fuzzing may be slower than native x86 (e.g. cloud VM or Intel Mac). The **plotting pipeline** and **sample results** work on any platform.
+1. **AFL_FAST_CAL** (0/1) - Fast calibration mode
+2. **AFL_NO_ARITH** (0/1) - Disable arithmetic mutations
+3. **AFL_NO_HAVOC** (0/1) - Disable havoc mutations
+4. **AFL_DISABLE_TRIM** (0/1) - Disable input trimming
+5. **AFL_SHUFFLE_QUEUE** (0/1) - Shuffle input queue order
 
-## macOS: run in Docker (recommended)
+Parameters are defined in `scripts/afl_params.json`.
 
-Captain’s `run.sh` needs Linux (inotifywait, flock, etc.). Run it inside the provided runner image so your Mac stays clean:
+## Building the Dataset
+
+### Run all 32 combinations
 
 ```bash
-# Build the runner image (once)
-docker compose build
+# Run with default 20-minute budget per combination
+python3 scripts/build_dataset.py --budget 20m
 
-# Run full benchmark (captain + exp2json). Uses captainrc with WORKDIR=/workspace/workdir
-docker compose run --rm -e RUNNER_UID=$(id -u) -e RUNNER_GID=$(id -g) runner ./scripts/run_benchmark.sh
-
-# Or run only captain
-docker compose run --rm -e RUNNER_UID=$(id -u) -e RUNNER_GID=$(id -g) runner ./scripts/run_captain.sh
+# Or specify custom budget
+python3 scripts/build_dataset.py --budget 30m
 ```
 
-Then on the host (or inside the same image with `workdir` mounted):
+### Resume from saved state
+
+If the system disconnects (e.g., VCL timeout), resume where you left off:
 
 ```bash
-python3 scripts/plot_benchmark.py workdir/../bugs.json -o .
-# If bugs.json is at repo root after run_benchmark.sh:
-python3 scripts/plot_benchmark.py bugs.json -o .
+python3 scripts/build_dataset.py --resume
 ```
 
-`RUNNER_UID` / `RUNNER_GID` match your user so files in `workdir/` are owned by you.
+The system automatically saves state to `dataset_state.json` and tracks completed combinations.
 
-**Manual flow (no run.sh):** From the host you can still run `magma/tools/captain/build.sh` and `start.sh` for a single campaign; see the plan (Section 9.3) for exact commands and directory layout for exp2json.
+### Preview combinations (dry run)
 
-## Captain config (captainrc)
+```bash
+python3 scripts/build_dataset.py --dry-run
+```
 
-- **WORKDIR** — Set to `./workdir` by default; when running in the Docker runner it is overridden to `/workspace/workdir` so output lands on your Mac.
-- **CACHE_ON_DISK=1** — Required when captain runs inside Docker (no tmpfs).
-- **FUZZERS=(afl)**, **afl_TARGETS=(libpng)** — Single fuzzer and target.
-- **TIMEOUT** — e.g. `24h` for a full benchmark, `10m` for a smoke test.
-- **REPEAT** — Number of campaigns per program (increase for distributions).
+## Results
 
-## Outputs
+### Per-combination results
 
-- **workdir/log/** — Build and run logs.
-- **workdir/ar/afl/libpng/libpng_read_fuzzer/0/, 1/, …** — Per-run data (monitor CSVs in `monitor/`, or inside `ball.tar`).
-- **bugs.json** — Summary from `magma/tools/benchd/exp2json.py` (time to first reach/trigger per bug per run).
-- **benchmark_time_to_first_bug.png** — Bar chart: bug ID vs time (min) to first trigger.
-- **benchmark_bugs_over_time.png** — Cumulative bugs triggered over time (one curve per run).
-- **benchmark_summary.csv** / **benchmark_summary.json** — Per-bug min/median trigger times and run counts.
+Each combination's results are stored in `dataset_results/combo_<N>/`:
+- `metrics.json` - Coverage, bugs, paths, execution stats
+- `bugs.json` - Detailed bug information from exp2json
+- `fuzzer_stats` - Raw AFL fuzzer statistics
 
-## Metrics
+### Aggregate results
 
-- **Time to first bug (per bug):** From `bugs.json` → `results.afl.libpng.libpng_read_fuzzer.<run>.triggered`; use min (or median) across runs.
-- **How long to catch bugs:** Shown by the cumulative plot and the per-bug times in the summary.
+Generate a CSV dataset with all combinations:
+
+```bash
+python3 scripts/aggregate_results.py
+```
+
+Output: `dataset_results.csv` with columns:
+- `combo_id` - Combination identifier (combo_0 through combo_31)
+- `AFL_FAST_CAL`, `AFL_NO_ARITH`, `AFL_NO_HAVOC`, `AFL_DISABLE_TRIM`, `AFL_SHUFFLE_QUEUE` - Parameter values
+- `bitmap_cvg_pct` - Coverage percentage
+- `paths_total` - Total paths discovered
+- `execs_done` - Total executions
+- `execs_per_sec` - Execution rate
+- `bugs_triggered` - Number of bugs triggered
+- `bugs_reached` - Number of bugs reached
+
+## State Management
+
+The system maintains state in `dataset_state.json`:
+- Tracks completed combinations
+- Records in-progress combination
+- Stores time budget and timestamps
+- Enables automatic resume on restart
+
+## Project Layout
+
+- **magma/** — Magma v1.2.1 clone (captain, benchd, targets)
+- **scripts/afl_params.json** — AFL parameter definitions
+- **scripts/build_dataset.py** — Main dataset builder script
+- **scripts/aggregate_results.py** — Results aggregator
+- **scripts/setup_local.sh** — Local setup script
+- **scripts/run_knob_campaign.sh** — Single campaign runner
+- **captainrc.dataset** — Captain config for dataset runs (20m timeout)
+- **dataset_results/** — Per-combination results (gitignored)
+- **dataset_state.json** — Build state for resuming (gitignored)
+- **dataset_results.csv** — Aggregated CSV dataset (gitignored)
+
+## Workflow
+
+1. **Setup**: Run `./scripts/setup_local.sh` once
+2. **Build dataset**: Run `python3 scripts/build_dataset.py --budget 20m`
+3. **Resume if needed**: Run `python3 scripts/build_dataset.py --resume` after disconnection
+4. **Aggregate**: Run `python3 scripts/aggregate_results.py` to generate CSV
+
+## Notes
+
+- Each combination uses a separate `workdir` to avoid conflicts
+- Workdirs are cleaned after metrics extraction to save space
+- All operations are logged to `dataset_build.log`
+- The system supports VCL disconnections via state saving/resuming
+- Default time budget is 20 minutes per combination (configurable)
 
 ## References
 

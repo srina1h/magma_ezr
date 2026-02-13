@@ -1,0 +1,9 @@
+# Dataset building config (20 minutes per combination)
+WORKDIR=${WORKDIR:-./workdir}
+REPEAT=1
+WORKERS=1
+TIMEOUT=20m
+POLL=5
+CACHE_ON_DISK=1
+FUZZERS=(afl)
+afl_TARGETS=(libpng)
