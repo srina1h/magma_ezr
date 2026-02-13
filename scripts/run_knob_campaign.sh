@@ -146,9 +146,9 @@ if [ -z "$FUZZER_STATS" ]; then
     find "$WORKDIR" -type f 2>/dev/null | head -50 >&2
     echo "[knob_campaign] workdir log dir:" >&2
     ls -la "$WORKDIR/log" 2>/dev/null >&2 || true
-    for f in "$WORKDIR"/log/* 2>/dev/null; do
+    for f in "$WORKDIR"/log/*; do
         [ -f "$f" ] && echo "--- $f (last 20 lines) ---" >&2 && tail -20 "$f" 2>/dev/null >&2
-    done
+    done 2>/dev/null || true
 fi
 
 # Count bugs from bugs.json
