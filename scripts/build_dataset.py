@@ -143,7 +143,19 @@ def check_combo_complete(label):
     """Check if a combination has valid results."""
     combo_dir = RESULTS_DIR / label
     metrics_file = combo_dir / "metrics.json"
-    return metrics_file.exists()
+    if not metrics_file.exists():
+        return False
+    
+    # Check if metrics show actual fuzzing happened (not just build failure)
+    try:
+        with open(metrics_file) as f:
+            metrics = json.load(f)
+        # If execs_done is 0, likely build failed
+        if metrics.get("execs_done", 0) == 0:
+            return False
+        return True
+    except:
+        return False
 
 def main():
     parser = argparse.ArgumentParser(
@@ -230,8 +242,14 @@ def main():
             save_state(state)
             log(f"✓ Completed: {label} ({len(completed_set)}/{len(combinations)})")
         else:
-            log(f"✗ Failed or incomplete: {label}")
+            if success:
+                log(f"✗ Incomplete: {label} (build may have failed - check build logs)")
+            else:
+                log(f"✗ Failed: {label} (check logs for details)")
             # Keep in_progress set so we can retry on resume
+            # But clear it so we don't get stuck retrying the same failing combo
+            state["in_progress"] = None
+            save_state(state)
         
         # Brief pause between campaigns
         time.sleep(2)

@@ -47,10 +47,20 @@ if [ ! -f "$CAPTAINRC" ]; then
 fi
 
 echo "[knob_campaign] Running captain..."
-"$SCRIPT_DIR/run_captain.sh" "$CAPTAINRC" || {
-    echo "ERROR: Captain failed with exit code $?"
-    exit 1
-}
+if ! "$SCRIPT_DIR/run_captain.sh" "$CAPTAINRC"; then
+    CAPTAIN_EXIT=$?
+    echo "ERROR: Captain failed with exit code $CAPTAIN_EXIT" >&2
+    
+    # Check build logs for more info
+    BUILD_LOG=$(find "$WORKDIR/log" -name "*build*" -type f 2>/dev/null | head -1)
+    if [ -n "$BUILD_LOG" ] && [ -f "$BUILD_LOG" ]; then
+        echo "Build log found: $BUILD_LOG" >&2
+        echo "Last 50 lines of build log:" >&2
+        tail -50 "$BUILD_LOG" >&2
+    fi
+    
+    exit $CAPTAIN_EXIT
+fi
 
 # Extract metrics from fuzzer_stats and monitor CSVs
 RUN_OUTPUT="$OUTPUT_DIR/$RUN_LABEL"

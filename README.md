@@ -38,6 +38,17 @@ Parameters are defined in `scripts/afl_params.json`.
 
 ## Building the Dataset
 
+### Verify build works first
+
+Before running all combinations, verify that the build works:
+
+```bash
+# Test build (recommended first step)
+./scripts/check_build.sh
+```
+
+This will attempt a test build and show any errors. Fix any build issues before proceeding.
+
 ### Run all 32 combinations
 
 ```bash
