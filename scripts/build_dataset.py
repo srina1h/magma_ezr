@@ -81,10 +81,29 @@ def parse_timeout(timeout_str):
     else:
         return int(timeout_str) * 60  # Default to minutes
 
+def check_docker_image():
+    """Check if Docker image exists. Returns True if it does."""
+    try:
+        result = subprocess.run(
+            ["docker", "images", "magma/afl/libpng", "--format", "{{.Repository}}"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        return "magma" in result.stdout
+    except:
+        return False
+
 def run_campaign(label, params, timeout_seconds, captainrc):
     """Run a single fuzzing campaign with given parameters."""
     log(f"Starting campaign: {label}")
     log(f"Parameters: {params}")
+    
+    # Check if Docker image exists - if not, add extra time for build
+    image_exists = check_docker_image()
+    if not image_exists:
+        log(f"  Docker image not found - adding 15 minutes for build time")
+        timeout_seconds += 900  # Add 15 minutes for build
     
     # Set environment variables
     env = os.environ.copy()
@@ -119,8 +138,8 @@ def run_campaign(label, params, timeout_seconds, captainrc):
         
         if result.returncode != 0:
             log(f"Campaign {label} failed with return code {result.returncode}")
-            log(f"STDOUT: {result.stdout[-500:]}")
-            log(f"STDERR: {result.stderr[-500:]}")
+            log(f"STDOUT: {result.stdout[-1000:]}")
+            log(f"STDERR: {result.stderr[-1000:]}")
             return False
         
         # Check if campaign actually ran (should take more than a few seconds)
@@ -137,6 +156,8 @@ def run_campaign(label, params, timeout_seconds, captainrc):
     except subprocess.TimeoutExpired:
         elapsed = time.time() - start_time
         log(f"Campaign {label} timed out after {elapsed:.1f}s")
+        log(f"  This may mean Docker build took too long, or fuzzing didn't start")
+        log(f"  Check workdir/log/ for build/fuzzing logs")
         return False
 
 def check_combo_complete(label):

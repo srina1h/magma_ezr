@@ -60,6 +60,16 @@ sudo ./scripts/fix_core_pattern.sh
 
 To make persistent: add `kernel.core_pattern=core` to `/etc/sysctl.conf`, then `sudo sysctl -p`.
 
+### Pre-build Docker image (recommended)
+
+Pre-build the image so campaigns don't timeout during build:
+
+```bash
+./scripts/prebuild_image.sh
+```
+
+This takes 10-20 minutes on first run. After this, campaigns start fuzzing immediately.
+
 ## Running Campaigns
 
 ### Run all combinations

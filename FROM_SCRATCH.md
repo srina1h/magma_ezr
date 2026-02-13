@@ -27,13 +27,21 @@ sudo ./scripts/fix_core_pattern.sh
 
 This is required for AFL. The container uses the host kernel, so fix it on the host.
 
-## Step 3: Verify build works
+## Step 3: Pre-build Docker image (recommended)
+
+Pre-build the image so campaigns don't timeout during build:
+
+```bash
+./scripts/prebuild_image.sh
+```
+
+This takes 10-20 minutes on first run. After this, campaigns will start fuzzing immediately.
+
+Alternatively, verify build works (also builds image):
 
 ```bash
 ./scripts/check_build.sh
 ```
-
-This builds the Docker image and runs a test campaign. If it fails, check Docker is running: `sudo systemctl status docker`.
 
 ## Step 4: Run all 32 combinations
 
