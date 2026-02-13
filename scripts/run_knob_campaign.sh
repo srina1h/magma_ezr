@@ -28,6 +28,18 @@ echo "[knob_campaign] Label=$RUN_LABEL Config=$CAPTAINRC"
 echo "[knob_campaign] AFL knobs:"
 env | grep '^AFL_' | sort || true
 
+# Export AFL environment variables so they're available to captain and Docker containers
+# Captain's run.sh should pass these to the containers it creates
+export AFL_FAST_CAL="${AFL_FAST_CAL:-0}"
+export AFL_NO_ARITH="${AFL_NO_ARITH:-0}"
+export AFL_NO_HAVOC="${AFL_NO_HAVOC:-0}"
+export AFL_DISABLE_TRIM="${AFL_DISABLE_TRIM:-0}"
+export AFL_SHUFFLE_QUEUE="${AFL_SHUFFLE_QUEUE:-0}"
+export AFL_SKIP_CPUFREQ="${AFL_SKIP_CPUFREQ:-1}"
+export AFL_NO_AFFINITY="${AFL_NO_AFFINITY:-1}"
+export AFL_I_DONT_CARE_ABOUT_MISSING_CRASHES="${AFL_I_DONT_CARE_ABOUT_MISSING_CRASHES:-1}"
+export AFL_NO_UI="${AFL_NO_UI:-1}"
+
 # Check if magma exists
 if [ ! -d "$MAGMA" ]; then
     echo "ERROR: Magma directory not found: $MAGMA"
@@ -47,16 +59,28 @@ if [ ! -f "$CAPTAINRC" ]; then
 fi
 
 echo "[knob_campaign] Running captain..."
+CAPTAIN_START=$(date +%s)
 if ! "$SCRIPT_DIR/run_captain.sh" "$CAPTAINRC"; then
     CAPTAIN_EXIT=$?
-    echo "ERROR: Captain failed with exit code $CAPTAIN_EXIT" >&2
+    CAPTAIN_ELAPSED=$(($(date +%s) - CAPTAIN_START))
+    echo "ERROR: Captain failed with exit code $CAPTAIN_EXIT after ${CAPTAIN_ELAPSED}s" >&2
+    
+    # Check if Docker image was built
+    echo "" >&2
+    echo "Checking Docker image..." >&2
+    if docker images magma/afl/libpng --format "{{.Repository}}" | grep -q magma; then
+        echo "✓ Docker image exists" >&2
+    else
+        echo "✗ Docker image magma/afl/libpng does NOT exist - build failed!" >&2
+    fi
     
     # Check build logs for more info
     BUILD_LOG=$(find "$WORKDIR/log" -name "*build*" -type f 2>/dev/null | head -1)
     if [ -n "$BUILD_LOG" ] && [ -f "$BUILD_LOG" ]; then
-        echo "Build log found: $BUILD_LOG" >&2
-        echo "Last 50 lines of build log:" >&2
-        tail -50 "$BUILD_LOG" >&2
+        echo "" >&2
+        echo "Build log: $BUILD_LOG" >&2
+        echo "Last 100 lines:" >&2
+        tail -100 "$BUILD_LOG" >&2
     fi
     
     # Check for run/fuzzing logs
@@ -64,15 +88,15 @@ if ! "$SCRIPT_DIR/run_captain.sh" "$CAPTAINRC"; then
     echo "Checking for fuzzing/run logs..." >&2
     find "$WORKDIR/log" -type f 2>/dev/null | while read logfile; do
         echo "=== $logfile ===" >&2
-        tail -30 "$logfile" >&2
+        tail -50 "$logfile" >&2
         echo "" >&2
     done
     
     # Check for container logs in workdir
     echo "Checking for container output..." >&2
-    find "$WORKDIR" -name "*.log" -o -name "*output*" -o -name "*error*" 2>/dev/null | head -5 | while read logfile; do
+    find "$WORKDIR" -name "*.log" -o -name "*output*" -o -name "*error*" 2>/dev/null | head -10 | while read logfile; do
         echo "=== $logfile ===" >&2
-        tail -30 "$logfile" >&2
+        tail -50 "$logfile" >&2
         echo "" >&2
     done
     

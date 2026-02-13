@@ -26,4 +26,14 @@ if [ ! -f "$CAPTAINRC" ]; then
 fi
 
 echo "MAGMA=$MAGMA WORKDIR=$WORKDIR captainrc=$CAPTAINRC" >&2
+
+# Pass AFL environment variables to captain
+# Captain should pass these to Docker containers it creates
+export AFL_SKIP_CPUFREQ="${AFL_SKIP_CPUFREQ:-1}"
+export AFL_NO_AFFINITY="${AFL_NO_AFFINITY:-1}"
+export AFL_I_DONT_CARE_ABOUT_MISSING_CRASHES="${AFL_I_DONT_CARE_ABOUT_MISSING_CRASHES:-1}"
+export AFL_NO_UI="${AFL_NO_UI:-1}"
+
+# Pass through any AFL_* variables that are set
+# (These should be set by run_knob_campaign.sh before calling this script)
 "$MAGMA/tools/captain/run.sh" "$CAPTAINRC"

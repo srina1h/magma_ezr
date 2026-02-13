@@ -1,0 +1,11 @@
+--- a/magma/runonce.sh
++++ b/magma/runonce.sh
+@@ -45,7 +45,7 @@ fi
+ fi
+ 
+ echo "$msg"
+-rm "$SHARED/runonce.tmp"
++rm -f "$SHARED/runonce.tmp"
+ 
+ if [ $is_triggered -ne 0 ] || [ $exit_code -ne 0 ]; then
+  exit 1

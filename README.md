@@ -41,6 +41,21 @@ Parameters are defined in `scripts/afl_params.json`.
 
 ## Building the Dataset
 
+### Fix core_pattern and apply magma patches (recommended first)
+
+On Linux, AFL may abort with "Pipe at the beginning of 'core_pattern'". Fix it once:
+
+```bash
+sudo ./scripts/fix_core_pattern.sh
+```
+
+Apply patches to magma so cp/rm/sleep work correctly, then rebuild the Docker image:
+
+```bash
+./scripts/apply_magma_patches.sh
+# Then rebuild the image (see docs/MANUAL_CONTAINER_RUN.md for the docker build command)
+```
+
 ### Verify build works first
 
 Before running all combinations, verify that the build works:

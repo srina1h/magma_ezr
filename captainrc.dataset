@@ -1,8 +1,9 @@
 # Dataset building config (20 minutes per combination)
+# Use seconds for TIMEOUT: magma's run.sh may pass it to sleep/timeout which expect seconds
 WORKDIR=${WORKDIR:-./workdir}
 REPEAT=1
 WORKERS=1
-TIMEOUT=20m
+TIMEOUT=1200
 POLL=5
 CACHE_ON_DISK=1
 FUZZERS=(afl)
