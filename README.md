@@ -11,7 +11,7 @@ Run magma fuzzing benchmark with different AFL parameter combinations. Collects 
 # 2. Fix core_pattern (required on Linux, one time)
 sudo ./scripts/fix_core_pattern.sh
 
-# 3. Run all 32 combinations (20 min each)
+# 3. Run all 32 combinations (builds image once, then 20 min fuzzing per combo)
 python3 scripts/build_dataset.py --budget 20m
 
 # 4. Generate CSV results
@@ -60,15 +60,11 @@ sudo ./scripts/fix_core_pattern.sh
 
 To make persistent: add `kernel.core_pattern=core` to `/etc/sysctl.conf`, then `sudo sysctl -p`.
 
-### Pre-build Docker image (recommended)
+### Build vs fuzz time
 
-Pre-build the image so campaigns don't timeout during build:
+`build_dataset.py` first ensures the Docker image exists: if not, it runs a **full build with no time limit** (10–20 min). Only after the build finishes does it run each of the 32 campaigns; each campaign gets the **full time budget for fuzzing** (e.g. 20m) plus a small buffer. So the budget is for fuzzing only, not build.
 
-```bash
-./scripts/prebuild_image.sh
-```
-
-This takes 10-20 minutes on first run. After this, campaigns start fuzzing immediately.
+To skip the build phase (image already built): `python3 scripts/build_dataset.py --budget 20m --skip-build`
 
 ## Running Campaigns
 

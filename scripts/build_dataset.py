@@ -95,6 +95,39 @@ def check_docker_image():
     except Exception:
         return False
 
+def ensure_docker_image_built():
+    """
+    Build Docker image if missing. No time limit - wait until build finishes.
+    After this, campaigns only use the fuzz time budget (+ small buffer).
+    """
+    if check_docker_image():
+        log("Docker image magma/afl/libpng already exists - skipping build")
+        return True
+    log("Docker image not found. Building now (no time limit - will wait until done)...")
+    prebuild = SCRIPT_DIR / "prebuild_image.sh"
+    if not prebuild.exists():
+        log("ERROR: scripts/prebuild_image.sh not found")
+        return False
+    try:
+        result = subprocess.run(
+            [str(prebuild)],
+            cwd=str(REPO_ROOT),
+            env=os.environ.copy(),
+            timeout=None,  # No timeout - wait for full build
+            capture_output=True,
+            text=True
+        )
+        if result.returncode != 0:
+            log(f"Build failed with exit code {result.returncode}")
+            log(f"STDOUT: {result.stdout[-2000:]}")
+            log(f"STDERR: {result.stderr[-2000:]}")
+            return False
+        log("Docker image built successfully. Starting campaigns with time budget only.")
+        return True
+    except Exception as e:
+        log(f"Build failed: {e}")
+        return False
+
 def extract_metrics_from_workdir(workdir, results_dir, label):
     """Extract fuzzer_stats from workdir and write metrics.json for label (e.g. after timeout)."""
     workdir = Path(workdir)
@@ -134,13 +167,8 @@ def run_campaign(label, params, timeout_seconds, captainrc):
     log(f"Starting campaign: {label}")
     log(f"Parameters: {params}")
     
-    # Captain runs fuzzer for TIMEOUT (1200s), then must exit and we extract metrics.
-    # We must allow more than timeout_seconds so we don't kill captain mid-fuzz.
-    effective_timeout = timeout_seconds + 300  # 5 min buffer for startup/shutdown
-    image_exists = check_docker_image()
-    if not image_exists:
-        log(f"  Docker image not found - adding 15 minutes for build time")
-        effective_timeout += 900  # Add 15 minutes for build
+    # Build is done separately. Here we only need fuzz budget + small buffer for start/stop.
+    effective_timeout = timeout_seconds + 300  # 5 min buffer for container start/stop
     log(f"  Process timeout: {effective_timeout}s (fuzz budget {timeout_seconds}s + buffer)")
     
     # Set environment variables
@@ -266,6 +294,11 @@ def main():
         default=str(REPO_ROOT / "captainrc.dataset"),
         help="Path to captainrc config file (default: captainrc.dataset)"
     )
+    parser.add_argument(
+        "--skip-build",
+        action="store_true",
+        help="Skip Docker image build phase (use if image already exists)"
+    )
     args = parser.parse_args()
     
     # Parse timeout
@@ -291,6 +324,17 @@ def main():
     
     # Create results directory
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+    
+    # Build Docker image once (no time limit). Then each campaign gets full time budget for fuzzing only.
+    if not args.skip_build:
+        if not ensure_docker_image_built():
+            log("ERROR: Docker image build failed. Fix build and re-run.")
+            sys.exit(1)
+    else:
+        log("Skipping build phase (--skip-build). Image must already exist.")
+        if not check_docker_image():
+            log("ERROR: Docker image magma/afl/libpng not found. Remove --skip-build or run ./scripts/prebuild_image.sh")
+            sys.exit(1)
     
     # Handle resume logic
     completed_set = set(state.get("completed", []))

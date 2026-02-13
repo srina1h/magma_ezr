@@ -27,31 +27,21 @@ sudo ./scripts/fix_core_pattern.sh
 
 This is required for AFL. The container uses the host kernel, so fix it on the host.
 
-## Step 3: Pre-build Docker image (recommended)
-
-Pre-build the image so campaigns don't timeout during build:
-
-```bash
-./scripts/prebuild_image.sh
-```
-
-This takes 10-20 minutes on first run. After this, campaigns will start fuzzing immediately.
-
-Alternatively, verify build works (also builds image):
-
-```bash
-./scripts/check_build.sh
-```
-
-## Step 4: Run all 32 combinations
+## Step 3: Run all 32 combinations
 
 ```bash
 python3 scripts/build_dataset.py --budget 20m
 ```
 
-This runs each of the 32 AFL parameter combinations for 20 minutes each. Results are saved to `dataset_results/combo_<N>/`.
+This will:
+1. **Build** the Docker image once if needed (no time limit; 10–20 min on first run).
+2. **Then** run each of the 32 combinations, each with a **full 20 minutes of fuzzing** (the budget is for fuzzing only).
 
-## Step 5: Resume if disconnected
+Results are saved to `dataset_results/combo_<N>/`.
+
+If the image is already built: `python3 scripts/build_dataset.py --budget 20m --skip-build`
+
+## Step 4: Resume if disconnected
 
 If your session disconnects (e.g., VCL timeout), resume:
 
@@ -61,7 +51,7 @@ python3 scripts/build_dataset.py --resume
 
 State is saved in `dataset_state.json`.
 
-## Step 6: Generate CSV results
+## Step 5: Generate CSV results
 
 ```bash
 python3 scripts/aggregate_results.py
