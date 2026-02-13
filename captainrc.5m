@@ -1,0 +1,9 @@
+# 5-minute micro-campaign config for EZR active learning iterations
+WORKDIR=${WORKDIR:-./workdir}
+REPEAT=1
+WORKERS=1
+TIMEOUT=5m
+POLL=5
+CACHE_ON_DISK=1
+FUZZERS=(afl)
+afl_TARGETS=(libpng)

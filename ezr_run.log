@@ -1,0 +1,9 @@
+[EZR] Generated 16 candidate configurations
+[EZR] Budget: 7 campaigns (5m each)
+[EZR] Seed: 42
+[EZR] Knob space: {'AFL_FAST_CAL': [0, 1], 'AFL_NO_ARITH': [0, 1], 'AFL_HANG_TMOUT': [50, 200, 500, 1000]}
+
+============================================================
+[EZR] Campaign: 0_baseline
+[EZR] Knobs: {'AFL_FAST_CAL': '0', 'AFL_NO_ARITH': '0', 'AFL_HANG_TMOUT': '200'}
+============================================================
