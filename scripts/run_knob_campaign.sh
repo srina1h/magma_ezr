@@ -111,9 +111,21 @@ mkdir -p "$RUN_OUTPUT"
 BUGS_JSON="$RUN_OUTPUT/bugs.json"
 python3 "$MAGMA/tools/benchd/exp2json.py" "$WORKDIR" "$BUGS_JSON" 2>/dev/null || true
 
-# Extract coverage from fuzzer_stats (AFL writes this into the findings dir)
-# Look in the cache/shared directory for fuzzer_stats
+# Extract coverage from fuzzer_stats (AFL writes into findings; captain may put it in workdir/ar/.../ball.tar)
 FUZZER_STATS=$(find "$WORKDIR" -name "fuzzer_stats" -type f 2>/dev/null | head -1)
+EXTRACT_DIR=""
+
+# If not found, captain may have archived output in ball.tar - extract and look inside
+if [ -z "$FUZZER_STATS" ]; then
+    BALL_TAR=$(find "$WORKDIR" -name "ball.tar" -type f 2>/dev/null | head -1)
+    if [ -n "$BALL_TAR" ]; then
+        EXTRACT_DIR=$(mktemp -d)
+        if tar -xf "$BALL_TAR" -C "$EXTRACT_DIR" 2>/dev/null; then
+            FUZZER_STATS=$(find "$EXTRACT_DIR" -name "fuzzer_stats" -type f 2>/dev/null | head -1)
+        fi
+    fi
+fi
+
 COVERAGE=0
 PATHS_TOTAL=0
 EXECS_DONE=0
@@ -125,6 +137,18 @@ if [ -n "$FUZZER_STATS" ]; then
     EXECS_DONE=$(grep -oP 'execs_done\s*:\s*\K[0-9]+' "$FUZZER_STATS" 2>/dev/null || echo "0")
     EXECS_PER_SEC=$(grep -oP 'execs_per_sec\s*:\s*\K[0-9.]+' "$FUZZER_STATS" 2>/dev/null || echo "0")
     cp "$FUZZER_STATS" "$RUN_OUTPUT/fuzzer_stats"
+fi
+[ -n "$EXTRACT_DIR" ] && [ -d "$EXTRACT_DIR" ] && rm -rf "$EXTRACT_DIR"
+
+if [ -z "$FUZZER_STATS" ]; then
+    echo "[knob_campaign] WARNING: no fuzzer_stats found under $WORKDIR or inside ball.tar" >&2
+    echo "[knob_campaign] workdir contents:" >&2
+    find "$WORKDIR" -type f 2>/dev/null | head -50 >&2
+    echo "[knob_campaign] workdir log dir:" >&2
+    ls -la "$WORKDIR/log" 2>/dev/null >&2 || true
+    for f in "$WORKDIR"/log/* 2>/dev/null; do
+        [ -f "$f" ] && echo "--- $f (last 20 lines) ---" >&2 && tail -20 "$f" 2>/dev/null >&2
+    done
 fi
 
 # Count bugs from bugs.json

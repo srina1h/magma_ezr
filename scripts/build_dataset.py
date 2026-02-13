@@ -206,7 +206,7 @@ def run_campaign(label, params, timeout_seconds, captainrc):
             log(f"Campaign {label} failed with return code {result.returncode}")
             log(f"STDOUT: {result.stdout[-1000:]}")
             log(f"STDERR: {result.stderr[-1000:]}")
-            return False
+            return (False, None)
         
         # Check if campaign actually ran (should take more than a few seconds)
         if elapsed < 5:
@@ -214,10 +214,10 @@ def run_campaign(label, params, timeout_seconds, captainrc):
             log(f"This likely indicates captain failed or didn't run properly")
             log(f"STDOUT: {result.stdout[-1000:]}")
             log(f"STDERR: {result.stderr[-1000:]}")
-            return False
+            return (False, None)
         
         log(f"Campaign {label} completed in {elapsed:.1f}s")
-        return True
+        return (True, (result.stdout or "")[-4000:] + "\n--- STDERR ---\n" + (result.stderr or "")[-4000:])
         
     except subprocess.TimeoutExpired:
         elapsed = time.time() - start_time
@@ -242,7 +242,7 @@ def run_campaign(label, params, timeout_seconds, captainrc):
                         except Exception:
                             pass
         log(f"  Check workdir/log/ for build/fuzzing logs")
-        return False
+        return (False, None)
 
 def check_combo_complete(label):
     """Check if a combination has valid results."""
@@ -362,7 +362,9 @@ def main():
         save_state(state)
         
         # Run campaign
-        success = run_campaign(label, combo_params, timeout_seconds, args.captainrc)
+        run_result = run_campaign(label, combo_params, timeout_seconds, args.captainrc)
+        success = run_result[0] if isinstance(run_result, tuple) else run_result
+        campaign_output = run_result[1] if isinstance(run_result, tuple) and len(run_result) > 1 else None
         
         # Check if combo completed successfully
         is_complete = check_combo_complete(label)
@@ -376,7 +378,11 @@ def main():
         else:
             if success:
                 log(f"✗ Incomplete: {label} (fuzzing didn't run or produced no results)")
-                log(f"  Check workdir/log/ for container/fuzzing logs")
+                if campaign_output:
+                    log(f"  --- Last campaign output (for diagnosis) ---")
+                    for line in campaign_output.strip().split("\n")[-80:]:
+                        log(f"  {line}")
+                log(f"  Run manually to see live output: ./scripts/run_knob_campaign.sh {label} 2>&1 | tee {label}.log")
             else:
                 log(f"✗ Failed: {label} (check logs for details)")
             # Clear in_progress so we don't get stuck retrying the same failing combo

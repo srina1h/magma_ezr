@@ -126,6 +126,7 @@ Output: `dataset_results.csv` with all combinations and metrics.
 | `Pipe at the beginning of 'core_pattern'` | Run `sudo ./scripts/fix_core_pattern.sh` |
 | Build fails | Check Docker is running: `sudo systemctl status docker` |
 | Campaign finishes too fast | Check `dataset_results/combo_X/fuzzer_stats` - if `execs_done=0`, build likely failed |
+| execs_done=0 but campaign ran ~20m | Captain ran but no fuzzer_stats. See `dataset_build.log` for "Last campaign output". Run manually: `./scripts/run_knob_campaign.sh combo_0 2>&1 | tee combo0.log` and inspect `workdir/` and `workdir/log/`. |
 
 For manual container debugging, see `docs/MANUAL_CONTAINER_RUN.md` (not needed for normal use).
 
