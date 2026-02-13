@@ -8,6 +8,7 @@ import argparse
 import itertools
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -91,19 +92,56 @@ def check_docker_image():
             timeout=5
         )
         return "magma" in result.stdout
-    except:
+    except Exception:
         return False
+
+def extract_metrics_from_workdir(workdir, results_dir, label):
+    """Extract fuzzer_stats from workdir and write metrics.json for label (e.g. after timeout)."""
+    workdir = Path(workdir)
+    results_dir = Path(results_dir)
+    stats_files = list(workdir.rglob("fuzzer_stats"))
+    if not stats_files:
+        return
+    stats_file = stats_files[0]
+    text = stats_file.read_text()
+    def get(key, default="0"):
+        m = re.search(rf"{key}\s*:\s*(\S+)", text)
+        return m.group(1) if m else default
+    coverage = get("bitmap_cvg", "0")
+    paths_total = get("paths_total", "0")
+    execs_done = get("execs_done", "0")
+    execs_per_sec = get("execs_per_sec", "0")
+    out_dir = results_dir / label
+    out_dir.mkdir(parents=True, exist_ok=True)
+    metrics = {
+        "label": label,
+        "bitmap_cvg_pct": float(coverage),
+        "paths_total": int(paths_total),
+        "execs_done": int(execs_done),
+        "execs_per_sec": float(execs_per_sec),
+        "bugs_triggered": 0,
+        "bugs_reached": 0,
+    }
+    (out_dir / "metrics.json").write_text(json.dumps(metrics, indent=2))
+    try:
+        import shutil
+        shutil.copy(stats_file, out_dir / "fuzzer_stats")
+    except Exception:
+        pass
 
 def run_campaign(label, params, timeout_seconds, captainrc):
     """Run a single fuzzing campaign with given parameters."""
     log(f"Starting campaign: {label}")
     log(f"Parameters: {params}")
     
-    # Check if Docker image exists - if not, add extra time for build
+    # Captain runs fuzzer for TIMEOUT (1200s), then must exit and we extract metrics.
+    # We must allow more than timeout_seconds so we don't kill captain mid-fuzz.
+    effective_timeout = timeout_seconds + 300  # 5 min buffer for startup/shutdown
     image_exists = check_docker_image()
     if not image_exists:
         log(f"  Docker image not found - adding 15 minutes for build time")
-        timeout_seconds += 900  # Add 15 minutes for build
+        effective_timeout += 900  # Add 15 minutes for build
+    log(f"  Process timeout: {effective_timeout}s (fuzz budget {timeout_seconds}s + buffer)")
     
     # Set environment variables
     env = os.environ.copy()
@@ -130,7 +168,7 @@ def run_campaign(label, params, timeout_seconds, captainrc):
             cmd,
             cwd=str(REPO_ROOT),
             env=env,
-            timeout=timeout_seconds,
+            timeout=effective_timeout,
             capture_output=True,
             text=True
         )
@@ -156,7 +194,25 @@ def run_campaign(label, params, timeout_seconds, captainrc):
     except subprocess.TimeoutExpired:
         elapsed = time.time() - start_time
         log(f"Campaign {label} timed out after {elapsed:.1f}s")
-        log(f"  This may mean Docker build took too long, or fuzzing didn't start")
+        # Try to extract partial metrics from workdir (in case fuzzer was running)
+        workdir = REPO_ROOT / "workdir"
+        if workdir.exists():
+            try:
+                extract_metrics_from_workdir(workdir, RESULTS_DIR, label)
+            except Exception as e:
+                log(f"  (could not extract partial metrics: {e})")
+            # Log diagnostic
+            log_dir = workdir / "log"
+            if log_dir.exists():
+                for f in sorted(log_dir.iterdir())[:5]:
+                    if f.is_file():
+                        try:
+                            tail = f.read_text(errors="replace").strip().split("\n")[-30:]
+                            log(f"  --- {f.name} (last 30 lines) ---")
+                            for line in tail:
+                                log(f"  {line}")
+                        except Exception:
+                            pass
         log(f"  Check workdir/log/ for build/fuzzing logs")
         return False
 
