@@ -72,6 +72,15 @@ for f in "$MAGMA/fuzzers/afl/run.sh" "$MAGMA/fuzzers/aflplusplus/run.sh" "$MAGMA
     fi
 done
 
+# 3e. Fuzzer run scripts: add afl-fuzz -s ${AFL_SEED:-42} for reproducible RNG across experiments
+for f in "$MAGMA/fuzzers/afl/run.sh" "$MAGMA/fuzzers/aflplusplus/run.sh" "$MAGMA/fuzzers/aflfast/run.sh"; do
+    if [ -f "$f" ] && grep -q 'afl-fuzz' "$f" 2>/dev/null && ! grep -q 'AFL_SEED\|-s \${AFL_SEED' "$f" 2>/dev/null; then
+        sed -i.bak 's/afl-fuzz /afl-fuzz -s ${AFL_SEED:-42} /g' "$f"
+        rm -f "$f.bak" 2>/dev/null
+        echo "  patched $f (afl-fuzz -s AFL_SEED for fixed RNG)"
+    fi
+done
+
 # 4. Any .sh under magma: on lines containing "corpus", change "cp " to "cp -r " (avoid double -r)
 find "$MAGMA" -name "*.sh" -type f 2>/dev/null | while read -r f; do
     if grep -q "corpus" "$f" 2>/dev/null && grep -q '\bcp ' "$f" 2>/dev/null; then

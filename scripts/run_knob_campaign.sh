@@ -28,6 +28,9 @@ echo "[knob_campaign] Label=$RUN_LABEL Config=$CAPTAINRC"
 echo "[knob_campaign] AFL knobs:"
 env | grep '^AFL_' | sort || true
 
+# Fixed RNG seed so all configuration experiments are comparable (afl-fuzz -s seed)
+export AFL_SEED="${AFL_SEED:-42}"
+
 # Export AFL environment variables so they're available to captain and Docker containers
 # Captain's run.sh should pass these to the containers it creates
 export AFL_FAST_CAL="${AFL_FAST_CAL:-0}"

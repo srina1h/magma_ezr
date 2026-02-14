@@ -83,7 +83,7 @@ def parse_timeout(timeout_str):
         return int(timeout_str) * 60  # Default to minutes
 
 def check_docker_image():
-    """Check if Docker image exists. Returns True if it does."""
+    """Check if Docker image exists. Returns True if it does. On permission error, returns False (caller should hint newgrp docker)."""
     try:
         result = subprocess.run(
             ["docker", "images", "magma/afl/libpng", "--format", "{{.Repository}}"],
@@ -91,7 +91,9 @@ def check_docker_image():
             text=True,
             timeout=5
         )
-        return "magma" in result.stdout
+        if result.returncode != 0 and "permission denied" in (result.stderr or "").lower():
+            return False  # Image may exist but we can't check
+        return "magma" in (result.stdout or "")
     except Exception:
         return False
 
@@ -179,6 +181,8 @@ def run_campaign(label, params, timeout_seconds, captainrc):
     for key, value in params.items():
         env[key] = str(value)
     
+    # Fixed RNG seed for comparable experiments across all configurations
+    env["AFL_SEED"] = os.environ.get("AFL_SEED", "42")
     # Additional AFL flags for local execution
     env["AFL_SKIP_CPUFREQ"] = "1"
     env["AFL_NO_AFFINITY"] = "1"
@@ -336,7 +340,9 @@ def main():
     else:
         log("Skipping build phase (--skip-build). Image must already exist.")
         if not check_docker_image():
-            log("ERROR: Docker image magma/afl/libpng not found. Remove --skip-build or run ./scripts/prebuild_image.sh")
+            log("ERROR: Docker image magma/afl/libpng not found or not visible to your user.")
+            log("  If you built with sudo: run 'newgrp docker' (or log out and back in), then run this again.")
+            log("  Otherwise: remove --skip-build or run ./scripts/prebuild_image.sh")
             sys.exit(1)
     
     # Handle resume logic

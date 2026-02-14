@@ -38,7 +38,7 @@ The system uses captain (magma's orchestration tool) and passes AFL parameters v
 - `AFL_DISABLE_TRIM` (0/1) - Disable input trimming
 - `AFL_SHUFFLE_QUEUE` (0/1) - Shuffle queue order
 
-Defined in `scripts/afl_params.json`.
+Defined in `scripts/afl_params.json`. A fixed RNG seed (`AFL_SEED=42`) is used for all runs so configuration experiments are comparable.
 
 ## Setup Details
 

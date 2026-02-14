@@ -27,6 +27,9 @@ fi
 
 echo "MAGMA=$MAGMA WORKDIR=$WORKDIR captainrc=$CAPTAINRC" >&2
 
+# Fixed RNG seed for reproducible experiments (passed to container; patch adds -s to afl-fuzz)
+export AFL_SEED="${AFL_SEED:-42}"
+
 # Pass AFL environment variables to captain
 # Captain should pass these to Docker containers it creates
 export AFL_SKIP_CPUFREQ="${AFL_SKIP_CPUFREQ:-1}"
