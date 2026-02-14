@@ -121,6 +121,9 @@ def ensure_docker_image_built():
             log(f"Build failed with exit code {result.returncode}")
             log(f"STDOUT: {result.stdout[-2000:]}")
             log(f"STDERR: {result.stderr[-2000:]}")
+            if "permission denied" in (result.stderr or "").lower() or "docker.sock" in (result.stderr or ""):
+                log("  → Fix: add your user to the 'docker' group: sudo usermod -aG docker $USER")
+                log("  → Then log out and back in, or run: newgrp docker")
             return False
         log("Docker image built successfully. Starting campaigns with time budget only.")
         return True

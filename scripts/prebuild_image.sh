@@ -21,6 +21,12 @@ if [ ! -f "$MAGMA/docker/Dockerfile" ]; then
     exit 1
 fi
 
+# When run with sudo, use the invoking user's UID/GID so groupadd doesn't fail (GID 0 exists)
+USER_ID="${SUDO_UID:-$(id -u)}"
+GROUP_ID="${SUDO_GID:-$(id -g)}"
+[ "$USER_ID" = "0" ] && USER_ID=1000
+[ "$GROUP_ID" = "0" ] && GROUP_ID=1000
+
 echo "Pre-building Docker image: magma/afl/libpng"
 echo "This may take 10-20 minutes on first run..."
 echo ""
@@ -29,8 +35,8 @@ cd "$MAGMA"
 docker build -t magma/afl/libpng \
   --build-arg fuzzer_name=afl \
   --build-arg target_name=libpng \
-  --build-arg USER_ID=$(id -u) \
-  --build-arg GROUP_ID=$(id -g) \
+  --build-arg USER_ID="$USER_ID" \
+  --build-arg GROUP_ID="$GROUP_ID" \
   --build-arg canaries=1 \
   -f docker/Dockerfile .
 

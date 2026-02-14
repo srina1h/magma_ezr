@@ -125,6 +125,7 @@ Output: `dataset_results.csv` with all combinations and metrics.
 |-------|-----|
 | `Pipe at the beginning of 'core_pattern'` | Run `sudo ./scripts/fix_core_pattern.sh` |
 | Build fails | Check Docker is running: `sudo systemctl status docker` |
+| `permission denied` / `docker.sock` | Your user can't access Docker. Run: `sudo usermod -aG docker $USER`, then log out and back in (or `newgrp docker`). |
 | Campaign finishes too fast | Check `dataset_results/combo_X/fuzzer_stats` - if `execs_done=0`, build likely failed |
 | execs_done=0 but campaign ran ~20m | Captain ran but no fuzzer_stats. See `dataset_build.log` for "Last campaign output". Run manually: `./scripts/run_knob_campaign.sh combo_0 2>&1 | tee combo0.log` and inspect `workdir/` and `workdir/log/`. |
 
